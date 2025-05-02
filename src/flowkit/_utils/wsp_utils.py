@@ -246,6 +246,9 @@ def _parse_population_node(pop_el, parent_id, gating_ns, data_type_ns):
     pop_name = pop_el.attrib['name']
     gate_el = pop_el.find('Gate', ns_map)
 
+    # NOTE: The child of the Gate node is gating type (e.g. gating:RectangleGate)
+    # The "gating" string will be replaced by http://.... defined in the ns_map
+    # `gating:RectangleGate` -> `{http://www.isac-net.org/std/Gating-ML/v2.0/gating}RectangleGate`
     gate_child_els = gate_el.getchildren()
 
     if len(gate_child_els) != 1:
@@ -256,8 +259,10 @@ def _parse_population_node(pop_el, parent_id, gating_ns, data_type_ns):
     # determine gate type
     # TODO: this string parsing seems fragile, may need to be shored up
     gate_type = gate_child_el.tag.partition('}')[-1]
+    # Get the class for different gate type
     gate_class = wsp_gate_constructor_lut[gate_type]
 
+    # NOTE: Define if the gated area should be included (1) or excluded (0)
     # Lookup 'eventsInside' attribute value, determines whether gate results
     # should within the gate area or outside (i.e. the gate's complement).
     # The value is a text string of an integer: '1' for events inside,
@@ -271,10 +276,11 @@ def _parse_population_node(pop_el, parent_id, gating_ns, data_type_ns):
     if events_inside_value == 1:
         use_complement = False
     else:
+        # Take event outside the gating area
         use_complement = True
 
     if gate_type in ['RectangleGate', 'PolygonGate', 'EllipsoidGate']:
-        # these take extra kwarg 'use_complement'
+        # these take extra kwarg 'use_complement', as they surround an area
         g = gate_class(
             gate_child_el,
             gating_ns,
@@ -282,6 +288,7 @@ def _parse_population_node(pop_el, parent_id, gating_ns, data_type_ns):
             use_complement=use_complement
         )
     else:
+        # NOTE: for "QuadrantGate" and "BooleanGate", which does not surround an area
         g = gate_class(
             gate_child_el,
             gating_ns,
@@ -420,6 +427,7 @@ def _convert_wsp_gate(wsp_gate, comp_matrix, xform_lut):
 
 
 def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns):
+    """Recurrsively read the subpopulation."""
     gates = {}
     ns_map = sub_pop_el.nsmap
 
@@ -427,14 +435,17 @@ def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns)
         # here we'll create the gate path as a list b/c we will append to it for recursion
         # however, when it is finally stored in the list of gate dicts we will convert to tuple
         gate_path = ['root']
-        parent_gate_name = None
+        parent_gate_name = None   # None: start from root
     else:
         parent_gate_name = gate_path[-1]
 
-    # regular gate (rectangle, polygon, etc.) are within 'Population' nodes
+    # regular gate (rectangle, polygon, etc.) are within the 'Gate' node in each 'Population' node
+    # <Population>
+    #   <Gate>
+    #       ...
     pop_els = sub_pop_el.findall('Population', ns_map)
 
-    # Boolean gates are not in 'Population' nodes & have their own dedicated
+    # Boolean gates (special gating types in FlowJo) are not in 'Population' nodes & have their own dedicated
     # node. And each type has a different tag so we need to find them separately.
     boolean_node_lut = {}
     boolean_node_lut['and'] = sub_pop_el.findall('AndNode', ns_map)
@@ -443,6 +454,7 @@ def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns)
 
     # recurse over 'Population' nodes
     for pop_el in pop_els:
+        # NOTE: get the gate from the population, there will only be one gate per polulation
         g = _parse_population_node(pop_el, parent_gate_name, gating_ns, data_type_ns)
         owning_group = pop_el.attrib['owningGroup']
 
@@ -499,6 +511,7 @@ def _parse_wsp_groups(group_node_els, ns_map, gating_ns, data_type_ns):
         # Group membership for samples is found in the 'Group' branch.
         # The SampleRefs element will contain a SampleRef element for
         # each sample assigned to the group.
+        # NOTE: we want to get `sampleID` here, showing the index of the sample in this group
         group_el = group_node_el.find('Group', ns_map)
         if group_el is not None:
             group_sample_refs_el = group_el.find('SampleRefs', ns_map)
@@ -509,6 +522,7 @@ def _parse_wsp_groups(group_node_els, ns_map, gating_ns, data_type_ns):
                     group_s_id = s_ref_el.attrib['sampleID']
                     group_samples.append(group_s_id)
 
+        # Subpopulations: gated populations of cells that are subsets of the total cell population
         group_root_sub_pop_el = group_node_el.find('Subpopulations', ns_map)
 
         # ignore groups with no subpopulations
@@ -626,6 +640,9 @@ def parse_wsp(workspace_file_or_path):
     :param workspace_file_or_path: A FlowJo .wsp file or file path
     :return: dict
     """
+    root_xml: etree._Element
+    # `_ns`: the name for gating, data_type, transform namespace
+    # So that we can successfully parse tag with namespace gating:Gate, transform:Transform
     doc_type, root_xml, gating_ns, data_type_ns, transform_ns = _get_xml_type(workspace_file_or_path)
 
     # first, find 1st level elements:
