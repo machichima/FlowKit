@@ -356,6 +356,7 @@ def parse_vertex_element(vertex_element, gating_namespace, data_type_namespace):
     """
     coordinates = []
 
+    # coordinate Node: show value of per axis (x or y axis)
     coord_els = vertex_element.findall(
         '%s:coordinate' % gating_namespace,
         namespaces=vertex_element.nsmap

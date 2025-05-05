@@ -236,6 +236,11 @@ def _parse_population_node(pop_el, parent_id, gating_ns, data_type_ns):
     """
     Given a Population node, return a gate instance
 
+    Example Structure:
+    <Population>
+        <Gate>
+            <gating:PolygonGate>
+
     :param pop_el: Population element
     :param parent_id: parent gate ID as list
     :param gating_ns: GatingML gating namespace
@@ -427,7 +432,16 @@ def _convert_wsp_gate(wsp_gate, comp_matrix, xform_lut):
 
 
 def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns):
-    """Recurrsively read the subpopulation."""
+    """Recurrsively read the subpopulation.
+
+    Returns Example:
+
+        ('root', 'Time', 'Singlets'): {
+            'owning_group': 'DEN',
+            'gate': GMLPolygonGate(Singlets, vertices: 8), 
+            'gate_path': ('root', 'Time')
+        }
+    """
     gates = {}
     ns_map = sub_pop_el.nsmap
 
@@ -454,8 +468,9 @@ def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns)
 
     # recurse over 'Population' nodes
     for pop_el in pop_els:
-        # NOTE: get the gate from the population, there will only be one gate per polulation
+        # NOTE: get the gate from the <Population> Node, there will only be one gate per polulation
         g = _parse_population_node(pop_el, parent_gate_name, gating_ns, data_type_ns)
+        # Specify which group it belongs to
         owning_group = pop_el.attrib['owningGroup']
 
         gate_id = copy.copy(gate_path)
@@ -501,6 +516,7 @@ def _recurse_wsp_sub_populations(sub_pop_el, gate_path, gating_ns, data_type_ns)
 
 
 def _parse_wsp_groups(group_node_els, ns_map, gating_ns, data_type_ns):
+    """Return gates and samples related to each group"""
     wsp_groups = {}
 
     for group_node_el in group_node_els:
@@ -646,7 +662,7 @@ def parse_wsp(workspace_file_or_path):
     doc_type, root_xml, gating_ns, data_type_ns, transform_ns = _get_xml_type(workspace_file_or_path)
 
     # first, find 1st level elements:
-    #     - Groups -> GroupNode
+    #     - Groups -> GroupNode -> Group (not captured here)
     #     - SampleList -> Sample
     ns_map = root_xml.nsmap
     groups_el = root_xml.find('Groups', ns_map)

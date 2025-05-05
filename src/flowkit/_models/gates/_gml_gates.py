@@ -83,6 +83,7 @@ class GMLPolygonGate(gates.PolygonGate):
         )
         self.parent = parent_gate_name
 
+        # Get all vertex node (points) of current gate
         vert_els = gate_element.findall(
             '%s:vertex' % gating_namespace,
             namespaces=gate_element.nsmap
