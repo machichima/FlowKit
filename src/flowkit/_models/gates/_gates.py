@@ -7,6 +7,7 @@ from ..dimension import RatioDimension
 from flowutils import gating
 
 
+# NOTE: represent the Gate Node only, not dealing with GatingML
 class RectangleGate(Gate):
     """
     Represents a GatingML Rectangle Gate

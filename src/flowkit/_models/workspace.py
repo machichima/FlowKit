@@ -37,6 +37,33 @@ class Workspace(object):
             ignore_missing_files=False,
             find_fcs_files_from_wsp=False
     ):
+        """
+        Parse Gates and samples
+
+        - Gate: get under <Subpopulation><Population> Node recurrsively (I can
+              hvae <Subpopulations> within the <Population>
+            - Get dict of:
+
+        ```python
+        "Group name": {
+            'gates': 
+                (node, path, in, tuple): {
+                    "owning_group": '...',
+                    "gate": '...',
+                    "gate_path": (node, path, in),
+                }
+        }
+        ```
+
+        - Sample: Stores:
+            - 'compensation'
+            - 'custom_gate_ids'
+            - 'gating_strategy': NOTE: they store gating strategy of a sample here
+            - 'keywords'
+            - 'sample_uri'
+            - 'transforms'
+        """
+
         # The sample LUT holds sample IDs (keys) only for loaded samples.
         # The values are the Sample instances
         self._sample_lut = {}
@@ -70,9 +97,15 @@ class Workspace(object):
         tmp_sample_lut = {s.id: s for s in sample_utils.load_samples(fcs_samples)}
         self._sample_lut = {}
 
+        # Get:
+        # 1. All groups and their gatings, sample (index)
+        # 2. List of samples (file name or other name)
+        #   - Inside 'samples' will include: 'compensation' 'custom_gate_ids'
+        #   'gating_strategy' 'keywords' 'sample_uri' 'transforms'
         wsp_data = wsp_utils.parse_wsp(wsp_file_path)
 
         # find samples in wsp file. in wsp_data['samples'], each item is a dict which has a key `sample_uri`
+        # NOTE: this find sample with the path in `sample_url`, not from the `fcs_samples` path
         if find_fcs_files_from_wsp:
             if fcs_samples is not None:
                 warnings.warn("When `find_fcs_files_from_wsp` is True, `fcs_samples` will be ignored.")

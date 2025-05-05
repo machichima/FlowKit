@@ -199,7 +199,13 @@ def parse_gate_element(
     :param gate_element: gate XML element from a GatingML-2.0 document
     :param gating_namespace: XML namespace for gating elements/attributes
     :param data_type_namespace: XML namespace for data type elements/attributes
+
+    :return: gate_id (gate name), parent_id (parent gate name), and dimensions (axis)
     """
+    # NOTE: They didn't parse `gating:vertex` here
+
+    # NOTE: FlowJo Node's attribute name is same as GatingML, which enables reusing the same
+    # parsing function as working on GatingML
     gate_id = find_attribute_value(gate_element, gating_namespace, 'id')
     parent_id = find_attribute_value(gate_element, gating_namespace, 'parent_id')
 
@@ -212,7 +218,9 @@ def parse_gate_element(
 
     dimensions = []  # may actually be a list of dividers
 
+    # Not QuadrantGate
     if len(div_els) == 0:
+        # Find the `gating:dimension` node
         dim_els = gate_element.findall(
             '%s:dimension' % gating_namespace,
             namespaces=gate_element.nsmap
@@ -224,6 +232,7 @@ def parse_gate_element(
             dim = _parse_dimension_element(dim_el, gating_namespace, data_type_namespace)
             dimensions.append(dim)
     else:
+        # for QuadrantGate
         for div_el in div_els:
             dim = _parse_divider_element(div_el, gating_namespace, data_type_namespace)
             dimensions.append(dim)
@@ -347,6 +356,7 @@ def parse_vertex_element(vertex_element, gating_namespace, data_type_namespace):
     """
     coordinates = []
 
+    # coordinate Node: show value of per axis (x or y axis)
     coord_els = vertex_element.findall(
         '%s:coordinate' % gating_namespace,
         namespaces=vertex_element.nsmap

@@ -11,7 +11,9 @@ public interaction in a GatingStrategy.
 from .. import gates
 from ..._utils import xml_utils, xml_common
 
-
+# NOTE: This handles parsing RectangleGate from GatingML, whilc
+# gates.RectangleGate only represent the RectangleGate node
+# See how Devin said: https://deepwiki.com/search/what-is-the-difference-between_2333af1a-9881-4fc2-ba66-bd0f5b8e4b24
 class GMLRectangleGate(gates.RectangleGate):
     """
     Represents a GatingML Rectangle Gate
@@ -32,6 +34,9 @@ class GMLRectangleGate(gates.RectangleGate):
             data_type_namespace,
             use_complement=False
     ):
+        # NOTE: In RectangleGate, it use `gating:dimension` node with value `gating:min` and 
+        # `gating:max` to determine the range on each exis, there's no `vertex` node as PolygonGate
+
         gate_name, parent_gate_name, dimensions = xml_utils.parse_gate_element(
             gate_element,
             gating_namespace,
@@ -78,6 +83,7 @@ class GMLPolygonGate(gates.PolygonGate):
         )
         self.parent = parent_gate_name
 
+        # Get all vertex node (points) of current gate
         vert_els = gate_element.findall(
             '%s:vertex' % gating_namespace,
             namespaces=gate_element.nsmap
